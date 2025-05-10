@@ -162,11 +162,11 @@
               menuData.push({ date: parts[0].trim(), lunch: parts[2].trim() });
             }
           }
-          const dates = getMDYDates();
-          console.log('Searching for menu items for dates:', dates);
+          const date = getMDYDates();
+          console.log('Searching for menu items for date:', date);
           const filteredMenu = [];
           for (let i = 0; i < menuData.length; i++) {
-            if (dates.includes(toMDYfromLong(menuData[i].date))) {
+            if (toMDYfromLong(menuData[i].date) === date) {
               filteredMenu.push(menuData[i]);
             }
           }
@@ -186,18 +186,18 @@
         .then(response => response.text())
         .then(csv => {
           const lines = csv.trim().split('\n');
-          const dates = getMDYDates();
+          const date = getMDYDates();
           const items = lines.slice(1)
             .map(line => {
               // Split only on the first two commas to handle commas in the description
               const firstComma = line.indexOf(',');
               const secondComma = line.indexOf(',', firstComma + 1);
-              const date = line.substring(0, firstComma).trim();
+              const d = line.substring(0, firstComma).trim();
               // const day = line.substring(firstComma + 1, secondComma).trim(); // not used
               const desc = line.substring(secondComma + 1).trim();
-              return { date, desc };
+              return { date: d, desc };
             })
-            .filter(item => dates.includes(item.date));
+            .filter(item => item.date === date);
           const list = document.getElementById('burnett-list');
           list.innerHTML = '';
           items.forEach(item => {
@@ -212,18 +212,20 @@
         });
     }
 
-    // Utility to get today's and tomorrow's dates in MM/DD/YYYY format
+    /**
+     * Returns today's date in MM/DD/YYYY format if today is a weekday.
+     * If today is a weekend, returns the next weekday's date in MM/DD/YYYY format.
+     * Example return: "04/29/2025"
+     */
     function getMDYDates() {
-      const today = new Date();
-      const tomorrow = new Date();
-      tomorrow.setDate(today.getDate() + 1);
-      function toMDY(date) {
-        const mm = String(date.getMonth() + 1).padStart(2, '0');
-        const dd = String(date.getDate()).padStart(2, '0');
-        const yyyy = date.getFullYear();
-        return `${mm}/${dd}/${yyyy}`;
+      let date = new Date();
+      while (date.getDay() === 0 || date.getDay() === 6) { // 0 = Sunday, 6 = Saturday
+        date.setDate(date.getDate() + 1);
       }
-      return [toMDY(today), toMDY(tomorrow)];
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     }
 
     // Helper to convert 'Month Day Year' to 'MM/DD/YYYY'
