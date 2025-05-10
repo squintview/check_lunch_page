@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Today's school news</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f9f9f9;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .date-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+    .date-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .date-day {
+      font-size: 3rem;
+      font-weight: bold;
+      color: #333;
+    }
+    .date-weekday {
+      font-size: 1.5rem;
+      color: #e74c3c;
+      font-weight: bold;
+    }
+    .date-month-year {
+      font-size: 1.2rem;
+      color: #666;
+      margin-top: -8px;
+      margin-left: 4px;
+    }
+    .section-title {
+      font-size: 1.4rem;
+      color: #6f42c1;
+      margin-bottom: 10px;
+      margin-top: 20px;
+      text-align: left;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-icon {
+      font-size: 1.3em;
+      vertical-align: middle;
+    }
+    #menu-list {
+      margin-left: 10px;
+      margin-top: 10px;
+      max-width: 600px;
+    }
+    .menu-item {
+      margin-bottom: 18px;
+    }
+    .menu-date {
+      font-weight: bold;
+      color: #333;
+      font-size: 1.08em;
+      margin-bottom: 2px;
+      display: block;
+    }
+    .menu-desc {
+      color: #444;
+      font-size: 1em;
+      margin-left: 0;
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Today's school news</h1>
+  <div class="date-section" id="date-section">
+    <!-- Date will be dynamically inserted here -->
+  </div>
+  <div class="section-title"><span class="section-icon">🍽️</span> Lunch</div>
+  <div id="menu-list">
+    <!-- Menu items will be dynamically inserted here -->
+  </div>
+
+  <div class="section-title" style="color:#007b83"><span class="section-icon">🎉</span> Burnett</div>
+  <div id="burnett-list">
+    <!-- Spirit wear items will be dynamically inserted here -->
+  </div>
+
+  <script>
+    let menuData = [];
+
+    // Function to render the menu
+    function renderMenu(menu) {
+      const list = document.getElementById("menu-list");
+      list.innerHTML = "";
+      menu.forEach((item) => {
+        const div = document.createElement("div");
+        div.className = "menu-item";
+        div.innerHTML = `
+          <span class="menu-date">${item.date}</span>
+          <div class="menu-desc">${item.lunch}</div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    // Function to format and render the date section
+    function renderDateSection() {
+      const today = new Date();
+      const day = today.getDate();
+      const weekday = today.toLocaleDateString(undefined, { weekday: 'long' });
+      const monthYear = today.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      const dateSection = document.getElementById("date-section");
+      dateSection.innerHTML = `
+        <div class="date-row">
+          <span class="date-day">${day}</span>
+          <span class="date-weekday">${weekday}</span>
+        </div>
+        <div class="date-month-year">${monthYear}</div>
+      `;
+    }
+
+    function parseCSVLine(line) {
+      // Simple CSV parser for 3 columns, handling quoted fields with commas
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current);
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current);
+      return result;
+    }
+
+    function loadMenu() {
+      renderDateSection();
+      fetch('data/menu.csv')
+        .then(response => response.text())
+        .then(csv => {
+          const lines = csv.trim().split('\n');
+          menuData = [];
+          for (let i = 1; i < lines.length; i++) { // skip header
+            const parts = parseCSVLine(lines[i]);
+            if (parts.length >= 3) {
+              menuData.push({ date: parts[0].trim(), lunch: parts[2].trim() });
+            }
+          }
+          const dates = getMDYDates();
+          console.log('Searching for menu items for dates:', dates);
+          const filteredMenu = [];
+          for (let i = 0; i < menuData.length; i++) {
+            if (dates.includes(toMDYfromLong(menuData[i].date))) {
+              filteredMenu.push(menuData[i]);
+            }
+          }
+          console.log('Filtered menu items:', filteredMenu);
+          renderMenu(filteredMenu);
+        });
+    }
+
+    // Load the menu on page load
+    loadMenu();
+    // Load Burnett spirit wear in a separate section after menu
+    loadBurnettSpiritWear();
+
+    // Function to fetch and render Burnett spirit wear
+    function loadBurnettSpiritWear() {
+      fetch('data/burnett_spirit_calendar.csv')
+        .then(response => response.text())
+        .then(csv => {
+          const lines = csv.trim().split('\n');
+          const dates = getMDYDates();
+          const items = lines.slice(1)
+            .map(line => {
+              // Split only on the first two commas to handle commas in the description
+              const firstComma = line.indexOf(',');
+              const secondComma = line.indexOf(',', firstComma + 1);
+              const date = line.substring(0, firstComma).trim();
+              // const day = line.substring(firstComma + 1, secondComma).trim(); // not used
+              const desc = line.substring(secondComma + 1).trim();
+              return { date, desc };
+            })
+            .filter(item => dates.includes(item.date));
+          const list = document.getElementById('burnett-list');
+          list.innerHTML = '';
+          items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'burnett-item';
+            div.innerHTML = `
+              <span class="burnett-date">${item.date}</span>
+              <div class="burnett-desc">${item.desc}</div>
+            `;
+            list.appendChild(div);
+          });
+        });
+    }
+
+    // Utility to get today's and tomorrow's dates in MM/DD/YYYY format
+    function getMDYDates() {
+      const today = new Date();
+      const tomorrow = new Date();
+      tomorrow.setDate(today.getDate() + 1);
+      function toMDY(date) {
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        const yyyy = date.getFullYear();
+        return `${mm}/${dd}/${yyyy}`;
+      }
+      return [toMDY(today), toMDY(tomorrow)];
+    }
+
+    // Helper to convert 'Month Day Year' to 'MM/DD/YYYY'
+    function toMDYfromLong(dateStr) {
+      const date = new Date(dateStr);
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    }
+  </script>
+</body>
+</html>
